@@ -12,10 +12,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import fr.math.vikapp.ui.*
 import fr.math.vikapp.ui.theme.VIKAPPTheme
 
@@ -61,8 +63,28 @@ class MainActivity : ComponentActivity() {
                             HomeScreen(
                                 viewModel = viewModel,
                                 onNavigateToLogin = { navController.navigate("login") },
-                                onNavigateToRaids = { /* Navigate to raids list */ },
+                                onNavigateToRaids = { navController.navigate("raids_list") },
                                 onNavigateToSettings = { navController.navigate("settings") }
+                            )
+                        }
+                        composable("raids_list") {
+                            RaidListScreen(
+                                viewModel = viewModel,
+                                onNavigateToDetail = { raidId -> 
+                                    navController.navigate("raid_detail/$raidId")
+                                },
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+                        composable(
+                            "raid_detail/{raidId}",
+                            arguments = listOf(navArgument("raidId") { type = NavType.IntType })
+                        ) { backStackEntry ->
+                            val raidId = backStackEntry.arguments?.getInt("raidId") ?: 0
+                            RaidDetailScreen(
+                                raidId = raidId,
+                                viewModel = viewModel,
+                                onBack = { navController.popBackStack() }
                             )
                         }
                         composable("settings") {

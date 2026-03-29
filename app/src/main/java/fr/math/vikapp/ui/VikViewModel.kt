@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import fr.math.vikapp.data.Club
 import fr.math.vikapp.data.Raid
 import fr.math.vikapp.data.RaidResponse
 import fr.math.vikapp.data.User
@@ -17,6 +18,7 @@ class VikViewModel : ViewModel() {
     var currentUser by mutableStateOf<User?>(null)
     var token by mutableStateOf<String?>(null)
     var raids by mutableStateOf<List<Raid>>(emptyList())
+    var clubs by mutableStateOf<List<Club>>(emptyList())
     var isLoading by mutableStateOf(false)
     var errorMessage by mutableStateOf<String?>(null)
 
@@ -27,6 +29,7 @@ class VikViewModel : ViewModel() {
 
     init {
         fetchRaids()
+        fetchClubs()
     }
 
     fun fetchRaids() {
@@ -44,12 +47,22 @@ class VikViewModel : ViewModel() {
         }
     }
 
+    fun fetchClubs() {
+        viewModelScope.launch {
+            try {
+                clubs = repository.getClubs()
+            } catch (e: Exception) {
+                errorMessage = "Erreur lors du chargement des clubs"
+            }
+        }
+    }
+
     fun login(credentials: Map<String, String>, onSuccess: () -> Unit) {
         viewModelScope.launch {
             isLoading = true
             try {
                 val response = repository.login(credentials)
-                token = response.token
+                token = response.access_token ?: response.token
                 currentUser = response.user
                 onSuccess()
             } catch (e: Exception) {
@@ -65,11 +78,11 @@ class VikViewModel : ViewModel() {
             isLoading = true
             try {
                 val response = repository.signup(userData)
-                token = response.token
+                token = response.access_token ?: response.token
                 currentUser = response.user
                 onSuccess()
             } catch (e: Exception) {
-                errorMessage = "Échec de l'inscription"
+                errorMessage = "Échec de l'inscription : ${e.message}"
             } finally {
                 isLoading = false
             }

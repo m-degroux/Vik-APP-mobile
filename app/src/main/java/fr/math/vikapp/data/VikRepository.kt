@@ -21,4 +21,5 @@ class VikRepository {
     suspend fun updateProfile(token: String, profileData: Map<String, String>) = 
         service.updateProfile("Bearer $token", profileData)
     suspend fun getRaids(): RaidResponse = service.getRaids()
+    suspend fun getClubs(): List<Club> = service.getClubs()
 }

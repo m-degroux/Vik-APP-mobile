@@ -1,3 +1,4 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
 package fr.math.vikapp.ui
 
 import androidx.compose.foundation.Image
@@ -6,9 +7,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,12 +48,10 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Utilisation du logo avec couleurs
                 Image(
                     painter = painterResource(id = R.drawable.logo),
                     contentDescription = "Logo Vik'App",
-                    modifier = Modifier
-                        .height(60.dp),
+                    modifier = Modifier.height(60.dp),
                     contentScale = ContentScale.Fit
                 )
                 
@@ -75,7 +78,6 @@ fun HomeScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                // Image d'illustration (raid.png ou trail.png)
                 Image(
                     painter = painterResource(id = R.drawable.raid),
                     contentDescription = "Raid illustration",
@@ -118,7 +120,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(viewModel.raids.take(3)) { raid ->
-                            RaidCard(raid)
+                            RaidCard(raid, onClick = { /* Navigate via detail if needed or home logic */ })
                         }
                     }
                 }
@@ -126,7 +128,6 @@ fun HomeScreen(
         }
         
         item {
-            // Utilisation d'une autre image (finish.jpg)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -156,6 +157,199 @@ fun HomeScreen(
 }
 
 @Composable
+fun RaidListScreen(
+    viewModel: VikViewModel,
+    onNavigateToDetail: (Int) -> Unit,
+    onBack: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Tous les Raids") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(viewModel.raids) { raid ->
+                RaidListItem(raid, onClick = { onNavigateToDetail(raid.id) })
+            }
+        }
+    }
+}
+
+@Composable
+fun RaidListItem(raid: Raid, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(12.dp)
+                .height(100.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = raid.picture,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = R.drawable.trail)
+            )
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column(
+                modifier = Modifier.fillMaxHeight(),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = raid.name,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1
+                )
+                raid.location?.let {
+                    Text(
+                        text = it.place,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                }
+                raid.dates?.let {
+                    Text(
+                        text = it.start,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF008000),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RaidDetailScreen(
+    raidId: Int,
+    viewModel: VikViewModel,
+    onBack: () -> Unit
+) {
+    val raid = viewModel.raids.find { it.id == raidId }
+    
+    if (raid == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Raid non trouvé")
+        }
+        return
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(raid.name) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+        ) {
+            AsyncImage(
+                model = raid.picture,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = R.drawable.raid)
+            )
+            
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = raid.name,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                InfoRow(icon = Icons.Default.DateRange, label = "Dates", value = "${raid.dates?.start} - ${raid.dates?.end}")
+                InfoRow(icon = Icons.Default.LocationOn, label = "Lieu", value = raid.location?.place ?: "Non spécifié")
+                
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                
+                Text(text = "Informations complémentaires", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text("Âge minimum : ${raid.min_age ?: "N/A"}")
+                Text("Nombre de courses : ${raid.races_count ?: "N/A"}")
+                
+                raid.registration?.let {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Inscriptions", fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                            Text("Du ${it.start} au ${it.end}", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Button(
+                    onClick = { /* Action s'inscrire */ },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF008000)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("S'inscrire au raid", color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 4.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = Color(0xFF008000), modifier = Modifier.size(20.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = "$label : ", fontWeight = FontWeight.Medium)
+        Text(text = value, color = Color.Gray)
+    }
+}
+
+@Composable
 fun SettingsScreen(viewModel: VikViewModel) {
     Column(
         modifier = Modifier
@@ -171,7 +365,6 @@ fun SettingsScreen(viewModel: VikViewModel) {
         
         HorizontalDivider()
         
-        // Mode Sombre / Clair
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -184,7 +377,6 @@ fun SettingsScreen(viewModel: VikViewModel) {
             )
         }
         
-        // Notifications
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -197,7 +389,6 @@ fun SettingsScreen(viewModel: VikViewModel) {
             )
         }
         
-        // Langue
         Column(modifier = Modifier.fillMaxWidth()) {
             Text("Langue")
             var expanded by remember { mutableStateOf(false) }
@@ -228,9 +419,9 @@ fun SettingsScreen(viewModel: VikViewModel) {
 }
 
 @Composable
-fun RaidCard(raid: Raid) {
+fun RaidCard(raid: Raid, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.width(250.dp),
+        modifier = Modifier.width(250.dp).clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -244,7 +435,6 @@ fun RaidCard(raid: Raid) {
                         .height(150.dp)
                         .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
                     contentScale = ContentScale.Crop,
-                    // Utilisation de trail.png comme placeholder
                     placeholder = painterResource(id = R.drawable.trail)
                 )
                 
@@ -290,26 +480,10 @@ fun RaidCard(raid: Raid) {
                     )
                 }
                 
-                if (raid.min_age != null) {
-                    Text(
-                        text = "Âge minimum : ${raid.min_age}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
-                }
-                
-                if (raid.races_count != null) {
-                    Text(
-                        text = "Nombre de courses : ${raid.races_count}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
-                }
-                
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Button(
-                    onClick = { /* Detail action */ },
+                    onClick = onClick,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF008000)),
                     shape = RoundedCornerShape(20.dp),
@@ -324,7 +498,7 @@ fun RaidCard(raid: Raid) {
 
 @Composable
 fun LoginScreen(viewModel: VikViewModel, onLoginSuccess: () -> Unit, onNavigateToSignup: () -> Unit) {
-    var email by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
     Column(
@@ -340,9 +514,9 @@ fun LoginScreen(viewModel: VikViewModel, onLoginSuccess: () -> Unit, onNavigateT
         Text("Connexion", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(24.dp))
         OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
+            value = username,
+            onValueChange = { username = it },
+            label = { Text("Nom d'utilisateur") },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -354,7 +528,7 @@ fun LoginScreen(viewModel: VikViewModel, onLoginSuccess: () -> Unit, onNavigateT
         )
         Spacer(modifier = Modifier.height(24.dp))
         Button(
-            onClick = { viewModel.login(mapOf("email" to email, "password" to password), onLoginSuccess) },
+            onClick = { viewModel.login(mapOf("user_username" to username, "user_password" to password), onLoginSuccess) },
             modifier = Modifier.fillMaxWidth(),
             enabled = !viewModel.isLoading,
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF008000))
@@ -371,48 +545,72 @@ fun LoginScreen(viewModel: VikViewModel, onLoginSuccess: () -> Unit, onNavigateT
 @Composable
 fun SignupScreen(viewModel: VikViewModel, onSignupSuccess: () -> Unit, onNavigateToLogin: () -> Unit) {
     var name by remember { mutableStateOf("") }
+    var firstName by remember { mutableStateOf("") }
+    var birthDate by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordConfirm by remember { mutableStateOf("") }
+    var selectedClubId by remember { mutableStateOf<Int?>(null) }
+    var clubExpanded by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.logo),
-            contentDescription = "Logo",
-            modifier = Modifier.size(100.dp).padding(bottom = 32.dp)
-        )
         Text("Inscription", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(24.dp))
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text("Nom complet") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Mot de passe") },
-            modifier = Modifier.fillMaxWidth()
-        )
+        
+        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = firstName, onValueChange = { firstName = it }, label = { Text("Prénom") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = birthDate, onValueChange = { birthDate = it }, label = { Text("Date de naissance (AAAA-MM-JJ)") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("Téléphone") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Adresse") }, modifier = Modifier.fillMaxWidth())
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = { clubExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(text = viewModel.clubs.find { it.club_id == selectedClubId }?.club_name ?: "Sélectionner un club")
+            }
+            DropdownMenu(expanded = clubExpanded, onDismissRequest = { clubExpanded = false }) {
+                viewModel.clubs.forEach { club ->
+                    DropdownMenuItem(
+                        text = { Text(club.club_name) },
+                        onClick = { selectedClubId = club.club_id; clubExpanded = false }
+                    )
+                }
+            }
+        }
+        
+        OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("Nom d'utilisateur") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Mot de passe") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = passwordConfirm, onValueChange = { passwordConfirm = it }, label = { Text("Confirmer le mot de passe") }, modifier = Modifier.fillMaxWidth())
+        
         Spacer(modifier = Modifier.height(24.dp))
+        
         Button(
             onClick = {
-                viewModel.signup(
-                    mapOf("name" to name, "email" to email, "password" to password),
-                    onSignupSuccess
+                val data = mapOf(
+                    "mem_name" to name,
+                    "mem_firstname" to firstName,
+                    "mem_birthdate" to birthDate,
+                    "mem_email" to email,
+                    "mem_phone" to phone,
+                    "mem_adress" to address,
+                    "user_username" to username,
+                    "user_password" to password,
+                    "user_password_confirmation" to passwordConfirm,
+                    "club_id" to (selectedClubId?.toString() ?: "0")
                 )
+                viewModel.signup(data, onSignupSuccess)
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = !viewModel.isLoading,

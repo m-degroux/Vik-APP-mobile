@@ -23,4 +23,7 @@ interface VikApiService {
 
     @GET("raid")
     suspend fun getRaids(): RaidResponse
+
+    @GET("clubs")
+    suspend fun getClubs(): List<Club>
 }
