@@ -22,5 +22,5 @@ interface VikApiService {
     ): User
 
     @GET("raid")
-    suspend fun getRaids(): List<Raid>
+    suspend fun getRaids(): RaidResponse
 }

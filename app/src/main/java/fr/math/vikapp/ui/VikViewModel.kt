@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import fr.math.vikapp.data.Raid
+import fr.math.vikapp.data.RaidResponse
 import fr.math.vikapp.data.User
 import fr.math.vikapp.data.VikRepository
 import kotlinx.coroutines.launch
@@ -19,6 +20,11 @@ class VikViewModel : ViewModel() {
     var isLoading by mutableStateOf(false)
     var errorMessage by mutableStateOf<String?>(null)
 
+    // Paramètres
+    var isDarkMode by mutableStateOf(false)
+    var notificationsEnabled by mutableStateOf(true)
+    var language by mutableStateOf("Français")
+
     init {
         fetchRaids()
     }
@@ -26,9 +32,14 @@ class VikViewModel : ViewModel() {
     fun fetchRaids() {
         viewModelScope.launch {
             try {
-                raids = repository.getRaids()
+                val response: RaidResponse = repository.getRaids()
+                if (response.success) {
+                    raids = response.data
+                } else {
+                    errorMessage = "Erreur lors de la récupération des raids"
+                }
             } catch (e: Exception) {
-                errorMessage = "Erreur lors de la récupération des raids"
+                errorMessage = "Erreur réseau : ${e.message}"
             }
         }
     }
@@ -71,5 +82,9 @@ class VikViewModel : ViewModel() {
             token = null
             currentUser = null
         }
+    }
+
+    fun toggleDarkMode() {
+        isDarkMode = !isDarkMode
     }
 }

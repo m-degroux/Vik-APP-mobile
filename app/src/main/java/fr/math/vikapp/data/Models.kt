@@ -17,11 +17,40 @@ data class LoginResponse(
 )
 
 @Serializable
+data class RaidResponse(
+    val success: Boolean,
+    val data: List<Raid>
+)
+
+@Serializable
 data class Raid(
     val id: Int,
     val name: String,
-    val description: String? = null,
-    val date: String,
-    val location: String? = null,
-    val image_url: String? = null
+    val registration: RaidRegistration? = null,
+    val dates: RaidDates? = null,
+    val location: RaidLocation? = null,
+    val picture: String? = null,
+    val is_ongoing: Boolean? = null,
+    val min_age: String? = null,
+    val races_count: Int? = null,
+    val countdown: String? = null
+)
+
+@Serializable
+data class RaidRegistration(
+    val start: String,
+    val end: String
+)
+
+@Serializable
+data class RaidDates(
+    val start: String,
+    val end: String
+)
+
+@Serializable
+data class RaidLocation(
+    val place: String,
+    val lat: String,
+    val lng: String
 )

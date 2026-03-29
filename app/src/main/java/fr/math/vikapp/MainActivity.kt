@@ -5,12 +5,16 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import fr.math.vikapp.ui.*
 import fr.math.vikapp.ui.theme.VIKAPPTheme
@@ -20,21 +24,26 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            VIKAPPTheme {
-                val viewModel: VikViewModel = viewModel()
+            val viewModel: VikViewModel = viewModel()
+            
+            VIKAPPTheme(darkTheme = viewModel.isDarkMode) {
                 val navController = rememberNavController()
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
                 
                 Scaffold(
                     bottomBar = {
                         NavigationBar {
                             NavigationBarItem(
-                                icon = { Text("Accueil") },
-                                selected = false,
+                                icon = { Icon(Icons.Default.Home, contentDescription = "Accueil") },
+                                label = { Text("Accueil") },
+                                selected = currentRoute == "home",
                                 onClick = { navController.navigate("home") }
                             )
                             NavigationBarItem(
-                                icon = { Text("Compte") },
-                                selected = false,
+                                icon = { Icon(Icons.Default.Person, contentDescription = "Compte") },
+                                label = { Text("Compte") },
+                                selected = currentRoute == "login" || currentRoute == "profile",
                                 onClick = { 
                                     if (viewModel.token == null) navController.navigate("login")
                                     else navController.navigate("profile")
@@ -52,8 +61,12 @@ class MainActivity : ComponentActivity() {
                             HomeScreen(
                                 viewModel = viewModel,
                                 onNavigateToLogin = { navController.navigate("login") },
-                                onNavigateToRaids = { /* Navigate to raids list */ }
+                                onNavigateToRaids = { /* Navigate to raids list */ },
+                                onNavigateToSettings = { navController.navigate("settings") }
                             )
+                        }
+                        composable("settings") {
+                            SettingsScreen(viewModel = viewModel)
                         }
                         composable("login") {
                             LoginScreen(
