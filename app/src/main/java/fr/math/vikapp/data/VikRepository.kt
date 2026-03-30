@@ -14,8 +14,8 @@ class VikRepository {
 
     private val service = retrofit.create(VikApiService::class.java)
 
-    suspend fun login(credentials: Map<String, String>) = service.login(credentials)
-    suspend fun signup(userData: Map<String, String>) = service.signup(userData)
+    suspend fun login(request: LoginRequest) = service.login(request)
+    suspend fun signup(request: SignupRequest) = service.signup(request)
     suspend fun logout(token: String) = service.logout("Bearer $token")
     suspend fun getUser(token: String) = service.getUser("Bearer $token")
     suspend fun updateProfile(token: String, profileData: Map<String, String>) = 

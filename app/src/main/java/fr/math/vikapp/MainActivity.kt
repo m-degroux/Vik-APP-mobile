@@ -45,7 +45,7 @@ class MainActivity : ComponentActivity() {
                             NavigationBarItem(
                                 icon = { Icon(Icons.Default.Person, contentDescription = "Compte") },
                                 label = { Text("Compte") },
-                                selected = currentRoute == "login" || currentRoute == "profile",
+                                selected = currentRoute == "login" || currentRoute == "profile" || currentRoute == "signup",
                                 onClick = { 
                                     if (viewModel.token == null) navController.navigate("login")
                                     else navController.navigate("profile")
@@ -94,18 +94,36 @@ class MainActivity : ComponentActivity() {
                             SettingsScreen(viewModel = viewModel)
                         }
                         composable("login") {
-                            LoginScreen(
-                                viewModel = viewModel,
-                                onLoginSuccess = { navController.navigate("home") },
-                                onNavigateToSignup = { navController.navigate("signup") }
-                            )
+                            if (viewModel.token != null) {
+                                LaunchedEffect(Unit) { navController.navigate("profile") { popUpTo("login") { inclusive = true } } }
+                            } else {
+                                LoginScreen(
+                                    viewModel = viewModel,
+                                    onLoginSuccess = { navController.navigate("profile") { popUpTo("login") { inclusive = true } } },
+                                    onNavigateToSignup = { navController.navigate("signup") }
+                                )
+                            }
                         }
                         composable("signup") {
-                            SignupScreen(
-                                viewModel = viewModel,
-                                onSignupSuccess = { navController.navigate("home") },
-                                onNavigateToLogin = { navController.navigate("login") }
-                            )
+                            if (viewModel.token != null) {
+                                LaunchedEffect(Unit) { navController.navigate("profile") { popUpTo("signup") { inclusive = true } } }
+                            } else {
+                                SignupScreen(
+                                    viewModel = viewModel,
+                                    onSignupSuccess = { navController.navigate("profile") { popUpTo("signup") { inclusive = true } } },
+                                    onNavigateToLogin = { navController.navigate("login") }
+                                )
+                            }
+                        }
+                        composable("profile") {
+                            if (viewModel.token == null) {
+                                LaunchedEffect(Unit) { navController.navigate("login") { popUpTo("profile") { inclusive = true } } }
+                            } else {
+                                ProfileScreen(
+                                    viewModel = viewModel,
+                                    onLogout = { navController.navigate("home") { popUpTo("profile") { inclusive = true } } }
+                                )
+                            }
                         }
                     }
                 }

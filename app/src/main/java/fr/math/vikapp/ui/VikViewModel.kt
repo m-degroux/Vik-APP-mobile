@@ -5,11 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import fr.math.vikapp.data.Club
-import fr.math.vikapp.data.Race
-import fr.math.vikapp.data.Raid
-import fr.math.vikapp.data.User
-import fr.math.vikapp.data.VikRepository
+import fr.math.vikapp.data.*
 import kotlinx.coroutines.launch
 
 class VikViewModel : ViewModel() {
@@ -43,7 +39,6 @@ class VikViewModel : ViewModel() {
             isLoading = true
             try {
                 raids = repository.getRaids()
-                // Initialise filteredRaids avec tous les raids au chargement
                 filteredRaids = raids
             } catch (e: Exception) {
                 errorMessage = "Erreur réseau : ${e.message}"
@@ -91,32 +86,46 @@ class VikViewModel : ViewModel() {
         }
     }
 
-    fun login(credentials: Map<String, String>, onSuccess: () -> Unit) {
+    fun login(request: LoginRequest, onSuccess: () -> Unit) {
         viewModelScope.launch {
             isLoading = true
+            errorMessage = null
             try {
-                val response = repository.login(credentials)
-                token = response.access_token ?: response.token
-                currentUser = response.user
-                onSuccess()
+                val response = repository.login(request)
+                if (response.success && response.access_token != null) {
+                    token = response.access_token
+                    // Récupération des informations complètes de l'utilisateur
+                    currentUser = repository.getUser(response.access_token)
+                    onSuccess()
+                } else {
+                    errorMessage = "Échec de la connexion"
+                }
             } catch (e: Exception) {
-                errorMessage = "Échec de la connexion"
+                errorMessage = "Erreur : ${e.message}"
+                e.printStackTrace()
             } finally {
                 isLoading = false
             }
         }
     }
 
-    fun signup(userData: Map<String, String>, onSuccess: () -> Unit) {
+    fun signup(request: SignupRequest, onSuccess: () -> Unit) {
         viewModelScope.launch {
             isLoading = true
+            errorMessage = null
             try {
-                val response = repository.signup(userData)
-                token = response.access_token ?: response.token
-                currentUser = response.user
-                onSuccess()
+                val response = repository.signup(request)
+                if (response.success && response.access_token != null) {
+                    token = response.access_token
+                    // Récupération des informations complètes après inscription
+                    currentUser = repository.getUser(response.access_token)
+                    onSuccess()
+                } else {
+                    errorMessage = "Échec de l'inscription"
+                }
             } catch (e: Exception) {
-                errorMessage = "Échec de l'inscription : ${e.message}"
+                errorMessage = "Erreur : ${e.message}"
+                e.printStackTrace()
             } finally {
                 isLoading = false
             }
@@ -125,9 +134,14 @@ class VikViewModel : ViewModel() {
 
     fun logout() {
         viewModelScope.launch {
-            token?.let { repository.logout(it) }
-            token = null
-            currentUser = null
+            try {
+                token?.let { repository.logout(it) }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                token = null
+                currentUser = null
+            }
         }
     }
 

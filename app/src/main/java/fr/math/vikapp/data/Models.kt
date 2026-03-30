@@ -5,20 +5,55 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class User(
-    val user_id: Int? = null,
-    val mem_name: String? = null,
-    val mem_firstname: String? = null,
-    val user_username: String? = null,
+    @SerialName("user_id") val user_id: Int? = null,
+    @SerialName("id") val id: Int? = null, // Alternative pour la réponse login
+    val club_id: Int? = null,
+    @SerialName("mem_name") val mem_name: String? = null,
+    @SerialName("name") val name: String? = null, // Alternative pour la réponse login
+    @SerialName("mem_firstname") val mem_firstname: String? = null,
+    @SerialName("firstname") val firstname: String? = null, // Alternative pour la réponse login
+    val mem_birthdate: String? = null,
+    val mem_adress: String? = null,
+    val mem_zipcode: String? = null,
+    val mem_phone: String? = null,
     val mem_email: String? = null,
-    val club_id: Int? = null
-)
+    val mem_default_licence: String? = null,
+    val user_username: String? = null
+) {
+    // Getters utilitaires pour gérer les différences entre login et profil
+    val displayId: Int? get() = user_id ?: id
+    val displayName: String? get() = mem_name ?: name
+    val displayFirstName: String? get() = mem_firstname ?: firstname
+}
 
 @Serializable
 data class LoginResponse(
     val success: Boolean,
     val access_token: String? = null,
-    val token: String? = null,
+    val token_type: String? = null,
     val user: User? = null
+)
+
+@Serializable
+data class LoginRequest(
+    val username: String, // Changé de user_username -> username selon l'image
+    val password: String  // Changé de user_password -> password selon l'image
+)
+
+@Serializable
+data class SignupRequest(
+    val mem_name: String,
+    val mem_firstname: String,
+    val mem_birthdate: String,
+    val mem_email: String,
+    val mem_phone: String,
+    val mem_adress: String,
+    val mem_zipcode: String,
+    val user_username: String,
+    val user_password: String,
+    val user_password_confirmation: String,
+    val club_id: Int? = null,
+    val mem_default_licence: String? = null
 )
 
 @Serializable

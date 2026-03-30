@@ -8,6 +8,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -21,12 +24,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import fr.math.vikapp.R
-import fr.math.vikapp.data.Raid
+import fr.math.vikapp.data.*
 
 @Composable
 fun HomeScreen(
@@ -360,7 +364,7 @@ fun RaidDetailScreen(
                 if (viewModel.isLoadingRaces) {
                     CircularProgressIndicator(color = Color(0xFF008000))
                 } else if (viewModel.races.isEmpty()) {
-                    Text("Aucune course disponible pour ce raid.")
+                    Text("Aucune course disponible for ce raid.")
                 } else {
                     viewModel.races.forEach { race ->
                         Card(
@@ -369,10 +373,31 @@ fun RaidDetailScreen(
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
-                                Text(text = race.name, fontWeight = FontWeight.Bold)
+                                Text(text = race.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                    Text("Dist: ${race.distance ?: "N/A"}", style = MaterialTheme.typography.bodySmall)
-                                    Text("Déniv: ${race.elevation ?: "N/A"}", style = MaterialTheme.typography.bodySmall)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Place, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("${race.distance ?: "N/A"}", style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("${race.elevation ?: "N/A"}m", style = MaterialTheme.typography.bodySmall)
+                                    }
+                                }
+                                if (race.start_time != null) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Départ : ${race.start_time}", style = MaterialTheme.typography.bodySmall)
+                                    }
+                                }
+                                if (race.price != null) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(text = "Prix repas : ${race.price}€", style = MaterialTheme.typography.bodySmall, color = Color(0xFF008000), fontWeight = FontWeight.Medium)
                                 }
                             }
                         }
@@ -584,6 +609,15 @@ fun LoginScreen(viewModel: VikViewModel, onLoginSuccess: () -> Unit, onNavigateT
         )
         Text("Connexion", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(24.dp))
+        
+        if (viewModel.errorMessage != null) {
+            Text(
+                text = viewModel.errorMessage!!,
+                color = Color.Red,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+
         OutlinedTextField(
             value = username,
             onValueChange = { username = it },
@@ -599,7 +633,12 @@ fun LoginScreen(viewModel: VikViewModel, onLoginSuccess: () -> Unit, onNavigateT
         )
         Spacer(modifier = Modifier.height(24.dp))
         Button(
-            onClick = { viewModel.login(mapOf("user_username" to username, "user_password" to password), onLoginSuccess) },
+            onClick = { 
+                viewModel.login(
+                    LoginRequest(username = username, password = password),
+                    onLoginSuccess
+                ) 
+            },
             modifier = Modifier.fillMaxWidth(),
             enabled = !viewModel.isLoading,
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF008000))
@@ -621,11 +660,17 @@ fun SignupScreen(viewModel: VikViewModel, onSignupSuccess: () -> Unit, onNavigat
     var email by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
+    var zipCode by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordConfirm by remember { mutableStateOf("") }
+    
+    var isLicensed by remember { mutableStateOf(false) }
+    var licenseNumber by remember { mutableStateOf("") }
     var selectedClubId by remember { mutableStateOf<Int?>(null) }
     var clubExpanded by remember { mutableStateOf(false) }
+
+    val radioOptions = listOf("Oui", "Non")
 
     Column(
         modifier = Modifier
@@ -638,30 +683,83 @@ fun SignupScreen(viewModel: VikViewModel, onSignupSuccess: () -> Unit, onNavigat
         Text("Inscription", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(24.dp))
         
+        if (viewModel.errorMessage != null) {
+            Text(
+                text = viewModel.errorMessage!!,
+                color = Color.Red,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+
         OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(value = firstName, onValueChange = { firstName = it }, label = { Text("Prénom") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(value = birthDate, onValueChange = { birthDate = it }, label = { Text("Date de naissance (AAAA-MM-JJ)") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("Téléphone") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Adresse") }, modifier = Modifier.fillMaxWidth())
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Box(modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick = { clubExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(text = viewModel.clubs.find { it.club_id == selectedClubId }?.club_name ?: "Sélectionner un club")
-            }
-            DropdownMenu(expanded = clubExpanded, onDismissRequest = { clubExpanded = false }) {
-                viewModel.clubs.forEach { club ->
-                    DropdownMenuItem(
-                        text = { Text(club.club_name) },
-                        onClick = { selectedClubId = club.club_id; clubExpanded = false }
-                    )
+        OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Adresse Postal") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = zipCode, onValueChange = { zipCode = it }, label = { Text("Code Postal") }, modifier = Modifier.fillMaxWidth())
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Section Licencié
+        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
+            Text("Êtes-vous licencié ?", fontWeight = FontWeight.Medium)
+            Row(Modifier.selectableGroup()) {
+                radioOptions.forEach { text ->
+                    Row(
+                        Modifier
+                            .height(48.dp)
+                            .selectable(
+                                selected = (if (isLicensed) "Oui" else "Non") == text,
+                                onClick = { isLicensed = (text == "Oui") },
+                                role = Role.RadioButton
+                            )
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (if (isLicensed) "Oui" else "Non") == text,
+                            onClick = null, // null because of selectable
+                            colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF008000))
+                        )
+                        Text(
+                            text = text,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(start = 16.dp)
+                        )
+                    }
                 }
             }
         }
+
+        if (isLicensed) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = { clubExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(text = viewModel.clubs.find { it.club_id == selectedClubId }?.club_name ?: "Sélectionner un club")
+                }
+                DropdownMenu(expanded = clubExpanded, onDismissRequest = { clubExpanded = false }) {
+                    viewModel.clubs.forEach { club ->
+                        DropdownMenuItem(
+                            text = { Text(club.club_name) },
+                            onClick = { selectedClubId = club.club_id; clubExpanded = false }
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = licenseNumber, 
+                onValueChange = { licenseNumber = it }, 
+                label = { Text("Numéro de Licence (FFCO)") }, 
+                placeholder = { Text("Ex: 1403958") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
         
-        OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("Nom d'utilisateur") }, modifier = Modifier.fillMaxWidth())
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("Pseudo") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Mot de passe") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(value = passwordConfirm, onValueChange = { passwordConfirm = it }, label = { Text("Confirmer le mot de passe") }, modifier = Modifier.fillMaxWidth())
         
@@ -669,19 +767,21 @@ fun SignupScreen(viewModel: VikViewModel, onSignupSuccess: () -> Unit, onNavigat
         
         Button(
             onClick = {
-                val data = mapOf(
-                    "mem_name" to name,
-                    "mem_firstname" to firstName,
-                    "mem_birthdate" to birthDate,
-                    "mem_email" to email,
-                    "mem_phone" to phone,
-                    "mem_adress" to address,
-                    "user_username" to username,
-                    "user_password" to password,
-                    "user_password_confirmation" to passwordConfirm,
-                    "club_id" to (selectedClubId?.toString() ?: "0")
+                val request = SignupRequest(
+                    mem_name = name,
+                    mem_firstname = firstName,
+                    mem_birthdate = birthDate,
+                    mem_email = email,
+                    mem_phone = phone,
+                    mem_adress = address,
+                    mem_zipcode = zipCode,
+                    user_username = username,
+                    user_password = password,
+                    user_password_confirmation = passwordConfirm,
+                    club_id = if (isLicensed) selectedClubId else null,
+                    mem_default_licence = if (isLicensed) licenseNumber else null
                 )
-                viewModel.signup(data, onSignupSuccess)
+                viewModel.signup(request, onSignupSuccess)
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = !viewModel.isLoading,
@@ -692,6 +792,89 @@ fun SignupScreen(viewModel: VikViewModel, onSignupSuccess: () -> Unit, onNavigat
         }
         TextButton(onClick = onNavigateToLogin) {
             Text("Déjà un compte ? Se connecter", color = Color(0xFF008000))
+        }
+    }
+}
+
+@Composable
+fun ProfileScreen(viewModel: VikViewModel, onLogout: () -> Unit) {
+    val user = viewModel.currentUser ?: return
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(24.dp))
+        Surface(
+            modifier = Modifier.size(100.dp),
+            shape = CircleShape,
+            color = Color(0xFFE8F5E9)
+        ) {
+            Icon(
+                Icons.Default.Person,
+                contentDescription = null,
+                modifier = Modifier.size(60.dp).padding(16.dp),
+                tint = Color(0xFF008000)
+            )
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = user.user_username ?: "",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = "${user.mem_firstname} ${user.mem_name}",
+            style = MaterialTheme.typography.bodyLarge,
+            color = Color.Gray
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                ProfileInfoItem(label = "Email", value = user.mem_email ?: "N/A", icon = Icons.Default.Email)
+                ProfileInfoItem(label = "Téléphone", value = user.mem_phone ?: "N/A", icon = Icons.Default.Phone)
+                ProfileInfoItem(label = "Date de naissance", value = user.mem_birthdate ?: "N/A", icon = Icons.Default.DateRange)
+                ProfileInfoItem(label = "Adresse", value = user.mem_adress ?: "N/A", icon = Icons.Default.LocationOn)
+                ProfileInfoItem(label = "Licence", value = user.mem_default_licence ?: "Non licencié", icon = Icons.Default.Info)
+                
+                val clubName = viewModel.clubs.find { it.club_id == user.club_id }?.club_name
+                ProfileInfoItem(label = "Club", value = clubName ?: "Aucun club", icon = Icons.Default.Place)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(
+            onClick = { viewModel.logout(); onLogout() },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Se déconnecter", color = Color.White)
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+fun ProfileInfoItem(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = Color(0xFF008000), modifier = Modifier.size(20.dp))
+        Spacer(modifier = Modifier.width(12.dp))
+        Column {
+            Text(text = label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+            Text(text = value, style = MaterialTheme.typography.bodyLarge)
         }
     }
 }
