@@ -20,6 +20,17 @@ class VikRepository {
     suspend fun getUser(token: String) = service.getUser("Bearer $token")
     suspend fun updateProfile(token: String, profileData: Map<String, String>) = 
         service.updateProfile("Bearer $token", profileData)
-    suspend fun getRaids(): RaidResponse = service.getRaids()
+
+    suspend fun getRaids(): List<Raid> {
+        return try {
+            val response = service.getRaids()
+            response.data
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     suspend fun getClubs(): List<Club> = service.getClubs()
+    suspend fun getRaces(): List<Race> = service.getRaces()
+    suspend fun getRaceById(id: Int): Race = service.getRaceById(id)
 }

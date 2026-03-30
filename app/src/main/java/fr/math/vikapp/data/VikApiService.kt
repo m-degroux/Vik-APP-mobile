@@ -26,4 +26,10 @@ interface VikApiService {
 
     @GET("clubs")
     suspend fun getClubs(): List<Club>
+
+    @GET("races")
+    suspend fun getRaces(): List<Race>
+
+    @GET("races/{id}")
+    suspend fun getRaceById(@Path("id") id: Int): Race
 }

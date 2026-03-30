@@ -12,9 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,7 +33,8 @@ fun HomeScreen(
     viewModel: VikViewModel,
     onNavigateToLogin: () -> Unit,
     onNavigateToRaids: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToDetail: (Int) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -113,14 +112,17 @@ fun HomeScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                if (viewModel.raids.isEmpty() && !viewModel.isLoading) {
+                if (viewModel.isLoading) {
+                    CircularProgressIndicator(color = Color(0xFF008000))
+                } else if (viewModel.raids.isEmpty()) {
                     Text("Aucun raid disponible pour le moment.")
                 } else {
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         items(viewModel.raids.take(3)) { raid ->
-                            RaidCard(raid, onClick = { /* Navigate via detail if needed or home logic */ })
+                            RaidCard(raid, onClick = { onNavigateToDetail(raid.id) })
                         }
                     }
                 }
@@ -174,15 +176,59 @@ fun RaidListScreen(
             )
         }
     ) { padding ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(padding)
         ) {
-            items(viewModel.raids) { raid ->
-                RaidListItem(raid, onClick = { onNavigateToDetail(raid.id) })
+            // Barre de recherche
+            OutlinedTextField(
+                value = viewModel.searchQuery,
+                onValueChange = { viewModel.filterRaids(it) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                placeholder = { Text("Rechercher un raid (lieu, nom...)") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (viewModel.searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.filterRaids("") }) {
+                            Icon(Icons.Default.Close, contentDescription = "Effacer")
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+            
+            // Simulation de recherche par distance
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Recherche à proximité (km)", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            }
+
+            if (viewModel.isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Color(0xFF008000))
+                }
+            } else if (viewModel.filteredRaids.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Aucun raid ne correspond à votre recherche.")
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(viewModel.filteredRaids) { raid ->
+                        RaidListItem(raid, onClick = { onNavigateToDetail(raid.id) })
+                    }
+                }
             }
         }
     }
@@ -210,7 +256,8 @@ fun RaidListItem(raid: Raid, onClick: () -> Unit) {
                     .size(100.dp)
                     .clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop,
-                placeholder = painterResource(id = R.drawable.trail)
+                placeholder = painterResource(id = R.drawable.raid_thumbnail),
+                error = painterResource(id = R.drawable.raid_thumbnail)
             )
             
             Spacer(modifier = Modifier.width(16.dp))
@@ -225,16 +272,16 @@ fun RaidListItem(raid: Raid, onClick: () -> Unit) {
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1
                 )
-                raid.location?.let {
+                raid.place?.let {
                     Text(
-                        text = it.place,
+                        text = it,
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
                 }
-                raid.dates?.let {
+                raid.dates?.start?.let {
                     Text(
-                        text = it.start,
+                        text = it,
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF008000),
                         fontWeight = FontWeight.Medium
@@ -253,6 +300,10 @@ fun RaidDetailScreen(
 ) {
     val raid = viewModel.raids.find { it.id == raidId }
     
+    LaunchedEffect(raidId) {
+        viewModel.fetchRacesForRaid(raidId)
+    }
+
     if (raid == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Raid non trouvé")
@@ -285,7 +336,8 @@ fun RaidDetailScreen(
                     .fillMaxWidth()
                     .height(250.dp),
                 contentScale = ContentScale.Crop,
-                placeholder = painterResource(id = R.drawable.raid)
+                placeholder = painterResource(id = R.drawable.raid_thumbnail),
+                error = painterResource(id = R.drawable.raid_thumbnail)
             )
             
             Column(modifier = Modifier.padding(16.dp)) {
@@ -297,9 +349,36 @@ fun RaidDetailScreen(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                InfoRow(icon = Icons.Default.DateRange, label = "Dates", value = "${raid.dates?.start} - ${raid.dates?.end}")
-                InfoRow(icon = Icons.Default.LocationOn, label = "Lieu", value = raid.location?.place ?: "Non spécifié")
+                InfoRow(icon = Icons.Default.DateRange, label = "Dates", value = "${raid.dates?.start ?: ""} - ${raid.dates?.end ?: ""}")
+                InfoRow(icon = Icons.Default.LocationOn, label = "Lieu", value = raid.place ?: "Non spécifié")
                 
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                
+                Text(text = "Liste des courses", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                if (viewModel.isLoadingRaces) {
+                    CircularProgressIndicator(color = Color(0xFF008000))
+                } else if (viewModel.races.isEmpty()) {
+                    Text("Aucune course disponible pour ce raid.")
+                } else {
+                    viewModel.races.forEach { race ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(text = race.name, fontWeight = FontWeight.Bold)
+                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    Text("Dist: ${race.distance ?: "N/A"}", style = MaterialTheme.typography.bodySmall)
+                                    Text("Déniv: ${race.elevation ?: "N/A"}", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
                 
                 Text(text = "Informations complémentaires", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
@@ -308,7 +387,7 @@ fun RaidDetailScreen(
                 Text("Âge minimum : ${raid.min_age ?: "N/A"}")
                 Text("Nombre de courses : ${raid.races_count ?: "N/A"}")
                 
-                raid.registration?.let {
+                if (raid.registration?.start != null || raid.registration?.end != null) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
@@ -316,21 +395,12 @@ fun RaidDetailScreen(
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text("Inscriptions", fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
-                            Text("Du ${it.start} au ${it.end}", style = MaterialTheme.typography.bodySmall)
+                            Text("Du ${raid.registration?.start ?: ""} au ${raid.registration?.end ?: ""}", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
                 
                 Spacer(modifier = Modifier.height(32.dp))
-                
-                Button(
-                    onClick = { /* Action s'inscrire */ },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF008000)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("S'inscrire au raid", color = Color.White)
-                }
             }
         }
     }
@@ -435,7 +505,8 @@ fun RaidCard(raid: Raid, onClick: () -> Unit) {
                         .height(150.dp)
                         .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
                     contentScale = ContentScale.Crop,
-                    placeholder = painterResource(id = R.drawable.trail)
+                    placeholder = painterResource(id = R.drawable.raid_thumbnail),
+                    error = painterResource(id = R.drawable.raid_thumbnail)
                 )
                 
                 if (raid.countdown != null) {
@@ -464,17 +535,17 @@ fun RaidCard(raid: Raid, onClick: () -> Unit) {
                     style = MaterialTheme.typography.titleMedium
                 )
                 
-                raid.dates?.let {
+                raid.dates?.start?.let {
                     Text(
-                        text = "Date : ${it.start}", 
+                        text = "Date : $it", 
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
                 }
                 
-                raid.location?.let {
+                raid.place?.let {
                     Text(
-                        text = "Lieu : ${it.place}",
+                        text = "Lieu : $it",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
