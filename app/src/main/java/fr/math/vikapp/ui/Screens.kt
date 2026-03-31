@@ -2,6 +2,7 @@
 package fr.math.vikapp.ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,6 +13,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -26,6 +28,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -37,7 +40,6 @@ fun HomeScreen(
     viewModel: VikViewModel,
     onNavigateToLogin: () -> Unit,
     onNavigateToRaids: () -> Unit,
-    onNavigateToSettings: () -> Unit,
     onNavigateToDetail: (Int) -> Unit
 ) {
     LazyColumn(
@@ -48,7 +50,7 @@ fun HomeScreen(
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Image(
@@ -57,10 +59,6 @@ fun HomeScreen(
                     modifier = Modifier.height(60.dp),
                     contentScale = ContentScale.Fit
                 )
-                
-                IconButton(onClick = onNavigateToSettings) {
-                    Icon(Icons.Default.Settings, contentDescription = "Paramètres")
-                }
             }
         }
 
@@ -202,10 +200,13 @@ fun RaidListScreen(
                     }
                 },
                 shape = RoundedCornerShape(12.dp),
-                singleLine = true
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = Color.White
+                )
             )
-            
-            // Simulation de recherche par distance
+
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -304,10 +305,6 @@ fun RaidDetailScreen(
 ) {
     val raid = viewModel.raids.find { it.id == raidId }
     
-    LaunchedEffect(raidId) {
-        viewModel.fetchRacesForRaid(raidId)
-    }
-
     if (raid == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Raid non trouvé")
@@ -356,54 +353,6 @@ fun RaidDetailScreen(
                 InfoRow(icon = Icons.Default.DateRange, label = "Dates", value = "${raid.dates?.start ?: ""} - ${raid.dates?.end ?: ""}")
                 InfoRow(icon = Icons.Default.LocationOn, label = "Lieu", value = raid.place ?: "Non spécifié")
                 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-                
-                Text(text = "Liste des courses", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                if (viewModel.isLoadingRaces) {
-                    CircularProgressIndicator(color = Color(0xFF008000))
-                } else if (viewModel.races.isEmpty()) {
-                    Text("Aucune course disponible for ce raid.")
-                } else {
-                    viewModel.races.forEach { race ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(text = race.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Place, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("${race.distance ?: "N/A"}", style = MaterialTheme.typography.bodySmall)
-                                    }
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("${race.elevation ?: "N/A"}m", style = MaterialTheme.typography.bodySmall)
-                                    }
-                                }
-                                if (race.start_time != null) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Départ : ${race.start_time}", style = MaterialTheme.typography.bodySmall)
-                                    }
-                                }
-                                if (race.price != null) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(text = "Prix repas : ${race.price}€", style = MaterialTheme.typography.bodySmall, color = Color(0xFF008000), fontWeight = FontWeight.Medium)
-                                }
-                            }
-                        }
-                    }
-                }
-
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
                 
                 Text(text = "Informations complémentaires", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
@@ -597,6 +546,12 @@ fun LoginScreen(viewModel: VikViewModel, onLoginSuccess: () -> Unit, onNavigateT
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        unfocusedContainerColor = Color.White,
+        focusedContainerColor = Color.White
+    )
+    val fieldShape = RoundedCornerShape(16.dp)
+
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.Center,
@@ -621,17 +576,21 @@ fun LoginScreen(viewModel: VikViewModel, onLoginSuccess: () -> Unit, onNavigateT
         OutlinedTextField(
             value = username,
             onValueChange = { username = it },
-            label = { Text("Nom d'utilisateur") },
-            modifier = Modifier.fillMaxWidth()
+            placeholder = { Text("Nom d'utilisateur") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = fieldShape,
+            colors = textFieldColors
         )
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Mot de passe") },
-            modifier = Modifier.fillMaxWidth()
+            placeholder = { Text("Mot de passe") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = fieldShape,
+            colors = textFieldColors
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         Button(
             onClick = { 
                 viewModel.login(
@@ -639,8 +598,9 @@ fun LoginScreen(viewModel: VikViewModel, onLoginSuccess: () -> Unit, onNavigateT
                     onLoginSuccess
                 ) 
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().height(50.dp),
             enabled = !viewModel.isLoading,
+            shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF008000))
         ) {
             if (viewModel.isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
@@ -672,6 +632,13 @@ fun SignupScreen(viewModel: VikViewModel, onSignupSuccess: () -> Unit, onNavigat
 
     val radioOptions = listOf("Oui", "Non")
 
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        unfocusedContainerColor = Color.White,
+        focusedContainerColor = Color.White
+    )
+    val fieldShape = RoundedCornerShape(16.dp)
+    val spacerHeight = 12.dp
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -691,15 +658,31 @@ fun SignupScreen(viewModel: VikViewModel, onSignupSuccess: () -> Unit, onNavigat
             )
         }
 
-        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = firstName, onValueChange = { firstName = it }, label = { Text("Prénom") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = birthDate, onValueChange = { birthDate = it }, label = { Text("Date de naissance (AAAA-MM-JJ)") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("Téléphone") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Adresse Postal") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = zipCode, onValueChange = { zipCode = it }, label = { Text("Code Postal") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = name, onValueChange = { name = it }, placeholder = { Text("Nom") }, modifier = Modifier.fillMaxWidth(), shape = fieldShape, colors = textFieldColors)
+        Spacer(modifier = Modifier.height(spacerHeight))
+        OutlinedTextField(value = firstName, onValueChange = { firstName = it }, placeholder = { Text("Prénom") }, modifier = Modifier.fillMaxWidth(), shape = fieldShape, colors = textFieldColors)
+        Spacer(modifier = Modifier.height(spacerHeight))
+        OutlinedTextField(value = birthDate, onValueChange = { birthDate = it }, placeholder = { Text("Date de naissance (AAAA-MM-JJ)") }, modifier = Modifier.fillMaxWidth(), shape = fieldShape, colors = textFieldColors)
+        Spacer(modifier = Modifier.height(spacerHeight))
+        OutlinedTextField(value = email, onValueChange = { email = it }, placeholder = { Text("Email") }, modifier = Modifier.fillMaxWidth(), shape = fieldShape, colors = textFieldColors)
+        Spacer(modifier = Modifier.height(spacerHeight))
+        
+        OutlinedTextField(
+            value = phone, 
+            onValueChange = { phone = it }, 
+            placeholder = { Text("Téléphone") }, 
+            modifier = Modifier.fillMaxWidth(),
+            shape = fieldShape,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            colors = textFieldColors
+        )
+        Spacer(modifier = Modifier.height(spacerHeight))
+        
+        OutlinedTextField(value = address, onValueChange = { address = it }, placeholder = { Text("Adresse Postal") }, modifier = Modifier.fillMaxWidth(), shape = fieldShape, colors = textFieldColors)
+        Spacer(modifier = Modifier.height(spacerHeight))
+        OutlinedTextField(value = zipCode, onValueChange = { zipCode = it }, placeholder = { Text("Code Postal") }, modifier = Modifier.fillMaxWidth(), shape = fieldShape, colors = textFieldColors)
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // Section Licencié
         Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
@@ -719,7 +702,7 @@ fun SignupScreen(viewModel: VikViewModel, onSignupSuccess: () -> Unit, onNavigat
                     ) {
                         RadioButton(
                             selected = (if (isLicensed) "Oui" else "Non") == text,
-                            onClick = null, // null because of selectable
+                            onClick = null,
                             colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF008000))
                         )
                         Text(
@@ -733,9 +716,13 @@ fun SignupScreen(viewModel: VikViewModel, onSignupSuccess: () -> Unit, onNavigat
         }
 
         if (isLicensed) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(spacerHeight))
             Box(modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = { clubExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = { clubExpanded = true }, 
+                    modifier = Modifier.fillMaxWidth().background(Color.White),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
                     Text(text = viewModel.clubs.find { it.club_id == selectedClubId }?.club_name ?: "Sélectionner un club")
                 }
                 DropdownMenu(expanded = clubExpanded, onDismissRequest = { clubExpanded = false }) {
@@ -747,23 +734,26 @@ fun SignupScreen(viewModel: VikViewModel, onSignupSuccess: () -> Unit, onNavigat
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(spacerHeight))
             OutlinedTextField(
                 value = licenseNumber, 
                 onValueChange = { licenseNumber = it }, 
-                label = { Text("Numéro de Licence (FFCO)") }, 
-                placeholder = { Text("Ex: 1403958") },
-                modifier = Modifier.fillMaxWidth()
+                placeholder = { Text("Numéro de Licence (FFCO)") }, 
+                modifier = Modifier.fillMaxWidth(),
+                shape = fieldShape,
+                colors = textFieldColors
             )
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
         
-        OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("Pseudo") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Mot de passe") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = passwordConfirm, onValueChange = { passwordConfirm = it }, label = { Text("Confirmer le mot de passe") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = username, onValueChange = { username = it }, placeholder = { Text("Pseudo") }, modifier = Modifier.fillMaxWidth(), shape = fieldShape, colors = textFieldColors)
+        Spacer(modifier = Modifier.height(spacerHeight))
+        OutlinedTextField(value = password, onValueChange = { password = it }, placeholder = { Text("Mot de passe") }, modifier = Modifier.fillMaxWidth(), shape = fieldShape, colors = textFieldColors)
+        Spacer(modifier = Modifier.height(spacerHeight))
+        OutlinedTextField(value = passwordConfirm, onValueChange = { passwordConfirm = it }, placeholder = { Text("Confirmer le mot de passe") }, modifier = Modifier.fillMaxWidth(), shape = fieldShape, colors = textFieldColors)
         
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         
         Button(
             onClick = {
@@ -783,8 +773,9 @@ fun SignupScreen(viewModel: VikViewModel, onSignupSuccess: () -> Unit, onNavigat
                 )
                 viewModel.signup(request, onSignupSuccess)
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().height(50.dp),
             enabled = !viewModel.isLoading,
+            shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF008000))
         ) {
             if (viewModel.isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))

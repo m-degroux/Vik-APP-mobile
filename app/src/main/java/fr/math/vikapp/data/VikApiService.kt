@@ -33,11 +33,4 @@ interface VikApiService {
     @GET("clubs")
     suspend fun getClubs(): List<Club>
 
-    @Headers("Accept: application/json")
-    @GET("races")
-    suspend fun getRaces(): List<Race>
-
-    @Headers("Accept: application/json")
-    @GET("races/{id}")
-    suspend fun getRaceById(@Path("id") id: Int): Race
 }

@@ -64,7 +64,6 @@ class MainActivity : ComponentActivity() {
                                 viewModel = viewModel,
                                 onNavigateToLogin = { navController.navigate("login") },
                                 onNavigateToRaids = { navController.navigate("raids_list") },
-                                onNavigateToSettings = { navController.navigate("settings") },
                                 onNavigateToDetail = { raidId -> 
                                     navController.navigate("raid_detail/$raidId")
                                 }
